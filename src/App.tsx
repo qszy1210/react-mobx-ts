@@ -8,10 +8,26 @@ import { LocalStore } from './components/LocalStore';
 import { ShowName } from './components/ShowName';
 import {Delay} from './components/Delay';
 import { RunIAction } from './components/RunIAction';
+import { cc } from './allocate/utils';
+import { ret, ret1, walkTree } from './allocate/run';
+// import { Tree } from './components/Tree';
 
 const App = (()=> {
   return (
     <div className="App">
+
+        <pre>
+          {
+            cc.log("source=>target is \n", (ret))
+          }
+          {
+            cc.log("source=>target is \n", walkTree(ret))
+          }
+          {
+            cc.log("target=>source is ", ret1)
+          }
+        </pre>
+        {/* <Tree></Tree> */}
         {/* <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
           <p>
@@ -29,8 +45,8 @@ const App = (()=> {
           <LocalStore></LocalStore>
           <ShowName></ShowName>
         </header> */}
-        <Delay></Delay>
-        <RunIAction></RunIAction>
+        {/* <Delay></Delay>
+        <RunIAction></RunIAction> */}
       </div>
 
   );
