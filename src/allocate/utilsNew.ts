@@ -42,11 +42,11 @@ export function initTreeData(data: IAllocatedResultData[]): IAllocatedResultTree
 
     // 如果 expenseData 与 srcObjectId 相同, 构建新节点
     // updated: 按照过滤条件,不一定查询出来的一定是 expenseData, 只要没有父节点的都是 根节点
-    // const rootLevelSourceItems = uniqBy(data.filter(i=>(i.expenseDataId) === i.allocatedResultSource.srcObjectId).flatMap(i=>i.allocatedResultSource), "id");
+    const rootLevelSourceItems = uniqBy(data.filter(i=>(i.expenseDataId) === i.allocatedResultSource.srcObjectId).flatMap(i=>i.allocatedResultSource), "id");
     const parentKeys = Object.keys(childrenMap);
-    const rootLevelSourceItems = uniqBy(data.filter(i=>!parentKeys.includes(i.id)).flatMap(i=>i.allocatedResultSource), "id");
+    const rootLevelItems = data.filter(i=>!parentKeys.includes(i.id));
 
-    console.log("rootLevelSourceItems is", rootLevelSourceItems);
+    console.log("rootLevelSourceItems is", rootLevelItems);
 
     function appendChildrenNode(childrenMapKeyValue: string, parentItemId: string) {
         const children = childrenMap[childrenMapKeyValue];
@@ -60,9 +60,16 @@ export function initTreeData(data: IAllocatedResultData[]): IAllocatedResultTree
         }
     }
 
+    // 根节点(expenseData过来的源节点)
+    rootLevelSourceItems.forEach(sitem => {
+        const treeNode = makeNodeFromSource(sitem, "");
+        treeItems.push(treeNode);
+        appendChildrenNode(sitem.srcObjectId, treeNode.id);
+    })
+
     // 根节点
-    rootLevelSourceItems.forEach((item, index)=>{
-        const treeNode = makeNodeFromSource(item, "");
+    rootLevelItems.forEach((item, index)=>{
+        const treeNode = makeNode(item, "");
         treeItems.push(treeNode);
         appendChildrenNode(item.srcObjectId, treeNode.id);
     })
