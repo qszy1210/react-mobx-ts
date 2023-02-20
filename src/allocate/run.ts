@@ -2,9 +2,11 @@ import { IAllocatedResultTreeData } from "./declare";
 import { gqlListData } from "./mock";
 // import { data } from "./mock-data";
 import { data } from "./mock-data-simple";
+// import { data } from "./mock-data-s2";
 import { mockGqlList } from "./mock-gql";
 import { listData } from "./mock-list";
 import { initTreeDataNew, reverseTree } from "./utilsNew";
+
 
 export const ret = initTreeDataNew(data as any, true);
 

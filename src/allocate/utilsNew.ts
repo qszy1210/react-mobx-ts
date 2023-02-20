@@ -1,6 +1,7 @@
 import { IAllocatedResultData, IAllocatedResultSource, IAllocatedResultTreeData } from "./declare";
 import { groupBy, uniqBy, remove, forEach, max } from 'lodash';
 import { oc } from './utils';
+import {cloneDeep} from 'lodash';
 
 const getIdFn = (function getId() {
     let count = 1;
@@ -28,7 +29,6 @@ export function initTreeData(data: IAllocatedResultData[]): IAllocatedResultTree
     const childrenMap: {[key: string]: IAllocatedResultData[]} = {};
     // 构建缓存map
     data.forEach(item=>{
-        // todo oc
         const parentId = oc(item).allocatedResultSource.srcObjectId("");
         if (!childrenMap[parentId]){
             childrenMap[parentId] = [];
@@ -41,7 +41,10 @@ export function initTreeData(data: IAllocatedResultData[]): IAllocatedResultTree
     console.log("childrenMap is ", childrenMap);
 
     // 如果 expenseData 与 srcObjectId 相同, 构建新节点
-    const rootLevelSourceItems = uniqBy(data.filter(i=>(i.expenseDataId) === i.allocatedResultSource.srcObjectId).flatMap(i=>i.allocatedResultSource), "id");
+    // updated: 按照过滤条件,不一定查询出来的一定是 expenseData, 只要没有父节点的都是 根节点
+    // const rootLevelSourceItems = uniqBy(data.filter(i=>(i.expenseDataId) === i.allocatedResultSource.srcObjectId).flatMap(i=>i.allocatedResultSource), "id");
+    const parentKeys = Object.keys(childrenMap);
+    const rootLevelSourceItems = uniqBy(data.filter(i=>!parentKeys.includes(i.id)).flatMap(i=>i.allocatedResultSource), "id");
 
     console.log("rootLevelSourceItems is", rootLevelSourceItems);
 
@@ -65,11 +68,11 @@ export function initTreeData(data: IAllocatedResultData[]): IAllocatedResultTree
     })
 
     // 非根节点
-    data.forEach((item,index)=>{
-        const node = makeNode(item, "");
-        treeItems.push(node);
-        appendChildrenNode(item.id, node.id);
-    })
+    // data.forEach((item,index)=>{
+    //     const node = makeNode(item, "");
+    //     treeItems.push(node);
+    //     appendChildrenNode(item.id, node.id);
+    // })
 
     // rootLevelSourceItems.forEach((item, index)=>{
     //     const newItem = makeNodeFromSource(item, "", index+"");
@@ -110,56 +113,44 @@ export function initTreeData(data: IAllocatedResultData[]): IAllocatedResultTree
     //重新 构建 level 和 path
     completeLevelPath(treeItems, dataMapWithId);
 
-    console.log("treeItems is", treeItems);
+    console.log("treeItems is", cloneDeep(treeItems));
 
     summarize(treeItems);
+    // remove(treeItems, function(item){return item.toDelete || item.isLeaf});
+    remove(treeItems, function(item){return item.toDelete});
 
-    console.log("merged treeItems is", treeItems);
+
+    // console.log("merged treeItems is", treeItems);
 
     return treeItems;
 }
 
 
-export function initTreeDataReverse(data: IAllocatedResultData[]): IAllocatedResultTreeData[] {
+export function initTreeDataReverse(resultItems: IAllocatedResultData[]): IAllocatedResultTreeData[] {
     // complete tree property, parentId, level, 以及一些其他辅助信息, 比如 realId, amount, name, objInfo
 
-    if (!data || !data.length) return [];
+    if (!resultItems || !resultItems.length) return [];
 
     const treeItems: IAllocatedResultTreeData[] = [];
 
     // 构建所有的 node (包括 expenseData 来源节点 以及 当前的 target节点)
     const targetCachedMap: {[key:string]: IAllocatedResultData} = {};
     const sourceCachedMap: {[key:string]: IAllocatedResultSource} = {};
-    data.forEach((item,index)=>{
+    resultItems.forEach((item,index)=>{
         targetCachedMap[item.id] = item;
     });
     // 如果 expenseData 与 srcObjectId 相同, 构建新节点
-    const leafLevelItems = uniqBy(data.filter(i=>(i.expenseDataId) === i.allocatedResultSource.srcObjectId).flatMap(i=>i.allocatedResultSource), "id");
+    const leafLevelItems = uniqBy(resultItems.filter(i=>(i.expenseDataId) === i.allocatedResultSource.srcObjectId).flatMap(i=>i.allocatedResultSource), "id");
     leafLevelItems.forEach(item=>{
         sourceCachedMap[item.id] = item;
     })
 
     // 构建树
-    data.forEach((item, index, arr)=>{
-        const newItem = makeNode(item, "", index + "_r");
+    resultItems.forEach((item, index, arr)=>{
+        const newItem = makeNode(item, "");
         treeItems.push(newItem);
-        getChildren(treeItems, item, newItem, arr, index + "" + index);
+        getChildren(treeItems, item, newItem, arr);
     });
-
-    //获取 以 item 为父元素的节点
-    function getChildren(treeItems: IAllocatedResultTreeData[], originalParentItem: IAllocatedResultData, parentItem: IAllocatedResultTreeData, items: IAllocatedResultData[], index: string) {
-        const targetItem = targetCachedMap[originalParentItem.allocatedResultSource.srcObjectId];
-        const sourceItem = sourceCachedMap[originalParentItem.allocatedResultSource.id];
-        if (targetItem) {
-            const newNode = makeNode(targetItem, parentItem.id, index + "_r");
-            treeItems.push(newNode);
-            getChildren(treeItems, targetItem, newNode, items, index + index);//todo change index
-        }
-        if (sourceItem){
-            treeItems.push(makeNodeFromSource(sourceItem, parentItem.id, index+ "_r"));
-        }
-    }
-
 
     // 构建一个以id为key的map
     const dataMapWithId = {} as {[key: string]:IAllocatedResultTreeData};
@@ -169,11 +160,33 @@ export function initTreeDataReverse(data: IAllocatedResultData[]): IAllocatedRes
     //重新 构建 level 和 path
     completeLevelPath(treeItems, dataMapWithId);
 
+    console.log("treeItems is\n", cloneDeep(treeItems));
+
+    summarize(treeItems, treeItem=>{
+        return !!sourceCachedMap[treeItem.realId];
+    });
+
+    console.log("merged treeItems is\n", cloneDeep(treeItems));
+
     return treeItems;
+
+    //获取 以 item 为父元素的节点
+    function getChildren(treeItems: IAllocatedResultTreeData[], originalParentItem: IAllocatedResultData, parentItem: IAllocatedResultTreeData, items: IAllocatedResultData[]) {
+        const targetItem = targetCachedMap[originalParentItem.allocatedResultSource.srcObjectId];
+        const sourceItem = sourceCachedMap[originalParentItem.allocatedResultSource.id];
+        if (targetItem) {
+            const newNode = makeNode(targetItem, parentItem.id, {amount: parentItem.amount});
+            treeItems.push(newNode);
+            getChildren(treeItems, targetItem, newNode, items);
+        }
+        if (sourceItem){
+            treeItems.push(makeNodeFromSource(sourceItem, parentItem.id, {amount: parentItem.amount}));
+        }
+    }
 }
 
-function makeNode(item: IAllocatedResultData, parentId: string, index?: string): IAllocatedResultTreeData {
-    const [objInfo, name] = generateObjInfoAndDisplayStrFromTarget(item);
+function makeNode(item: IAllocatedResultData, parentId: string, options?: any): IAllocatedResultTreeData {
+    const [objInfo, name] = generateObjInfoAndDisplayStrFromTarget(Object.assign({}, item, options));
     const newItem:IAllocatedResultTreeData = {
         objInfo,
         name,
@@ -190,10 +203,10 @@ function makeNode(item: IAllocatedResultData, parentId: string, index?: string):
         isLeaf: true, //默认设置为叶子节点, 后边会进行更新
     };
 
-    return newItem;
+    return Object.assign(newItem, options);
 }
-function makeNodeFromSource(item: IAllocatedResultSource, parentId: string, index?: string): IAllocatedResultTreeData {
-    const [objInfo, name] =  generateObjInfoAndDisplayFromSource(item);
+function makeNodeFromSource(item: IAllocatedResultSource, parentId: string, options?: any): IAllocatedResultTreeData {
+    const [objInfo, name] =  generateObjInfoAndDisplayFromSource(Object.assign({}, item, options));
     const newItem = {
         objInfo,
         name,
@@ -210,7 +223,7 @@ function makeNodeFromSource(item: IAllocatedResultSource, parentId: string, inde
         isLeaf: false,//从来源出发的一定不是叶子节点
     };
 
-    return newItem;
+    return Object.assign(newItem, options);
 }
 
 // 反转树, 将 parentId 进行反转即可
@@ -254,22 +267,22 @@ function findChildrenFromParent(parentId: string, items: IAllocatedResultTreeDat
     return items.filter(i=>i.parentId === parentId);
 }
 // 汇总, 如果 path(不包含当前级 和 objInfo 一致), 那么我们认为需要进行合并
-function summarize(treeItems: IAllocatedResultTreeData[]) {
+function summarize(treeItems: IAllocatedResultTreeData[],ignoreCondition?: (treeItem: IAllocatedResultTreeData)=>boolean) {
     // summarize amount (same dimension)
     // const groupedData = groupBy(treeItems, "path");
 
     const maxLevel = max(treeItems.map(i=>i.level));
     if (maxLevel && maxLevel >= 1) {
         for (let level = 1; level <= maxLevel; level++) {
-            summarizeByLevel(treeItems, level);
+            summarizeByLevel(treeItems, level, ignoreCondition);
         }
     }
     // 根据需求要求, 如果是叶子节点,那么不会进行展示, 我们也进行去除
     // remove(treeItems, function(item){return item.toDelete||item.isLeaf})
-    remove(treeItems, function(item){return item.toDelete})
+    // remove(treeItems, function(item){return item.toDelete})
 }
 
-function summarizeByLevel(treeItems: IAllocatedResultTreeData[], loopLevel: number) {
+function summarizeByLevel(treeItems: IAllocatedResultTreeData[], loopLevel: number, ignoreCondition?: (treeItem: IAllocatedResultTreeData)=>boolean) {
     const currentLevelItems = treeItems.filter(i => i.level === loopLevel);
 
     if (currentLevelItems.length) {
@@ -279,13 +292,27 @@ function summarizeByLevel(treeItems: IAllocatedResultTreeData[], loopLevel: numb
             return item.path;
         });
 
+        console.log("grouped data is ", groupedItems);
+
         forEach(groupedItems, function (vals, key) {
             // 同一level, 同一path, 那么需要合并
             if (vals && vals.length) {
+
+                let toReduceVals = vals;
+                // expenseData 数据不进行合并
+                if (typeof ignoreCondition === "function") {
+                    toReduceVals = vals.filter(val=>!ignoreCondition(val))
+                }
+
+                //没有要合并的item
+                if (!toReduceVals || !toReduceVals.length) {
+                    return;
+                }
+
                 // 取第一个作为合并的元素
-                const finalItem:IAllocatedResultTreeData = vals[0];
+                const finalItem:IAllocatedResultTreeData = toReduceVals[0];
                 // 记录被合并后删除的元素
-                const totalAmount = vals.reduce((sum, cur, index) => {
+                const totalAmount = toReduceVals.reduce((sum, cur, index) => {
                     if (index > 0) {
                         // 处理合并后待删除的元素
                         cur.toDelete = true;
@@ -303,7 +330,7 @@ function summarizeByLevel(treeItems: IAllocatedResultTreeData[], loopLevel: numb
                 finalItem.amount = totalAmount;
                 finalItem.name = sliceLastSubString(finalItem.name, "金额:") + "金额:" + totalAmount;
 
-                finalItem.realId = vals.map(i=>i.realId).join(",");
+                finalItem.realId = toReduceVals.map(i=>i.realId).join(",");
             }
         });
     }

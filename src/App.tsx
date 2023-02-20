@@ -10,6 +10,7 @@ import {Delay} from './components/Delay';
 import { RunIAction } from './components/RunIAction';
 import { cc } from './allocate/utils';
 import { ret, ret1, walkTree } from './allocate/run';
+import {cloneDeep} from 'lodash';
 // import { Tree } from './components/Tree';
 
 const App = (()=> {
@@ -18,14 +19,17 @@ const App = (()=> {
 
         <pre>
           {
-            cc.log("source=>target is \n", (ret))
+            cc.log("source=>target is \n", cloneDeep(ret))
           }
           {
             cc.log("source=>target is \n", walkTree(ret))
           }
-          {
-            cc.log("target=>source is ", ret1)
+          {/* {
+            cc.log("target=>source is \n", cloneDeep(ret1))
           }
+          {
+            cc.log("target=>source is \n", walkTree(ret1))
+          } */}
         </pre>
         {/* <Tree></Tree> */}
         {/* <header className="App-header">
