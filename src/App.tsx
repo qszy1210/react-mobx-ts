@@ -18,18 +18,18 @@ const App = (()=> {
     <div className="App">
 
         <pre>
-          {
+          {/* {
             cc.log("source=>target is \n", cloneDeep(ret))
           }
           {
             cc.log("source=>target is \n", walkTree(ret))
-          }
-          {/* {
+          } */}
+          {
             cc.log("target=>source is \n", cloneDeep(ret1))
           }
           {
             cc.log("target=>source is \n", walkTree(ret1))
-          } */}
+          }
         </pre>
         {/* <Tree></Tree> */}
         {/* <header className="App-header">
