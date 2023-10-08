@@ -150,9 +150,15 @@ export function initTreeDataReverse(resultItems: IAllocatedResultData[]): IAlloc
         targetCachedMap[item.id] = item;
     });
     // 如果 expenseData 与 srcObjectId 相同, 构建新节点
-    // updated: 按照过滤条件,不一定查询出来的一定是 expenseData, 只要没有父节点的都是 根节点
-    const keys = Array.from(new Set(resultItems.map(i=>oc(i).allocatedResultSource.srcObjectId("")).filter(i=>!!i)));
-    const leafLevelItems = uniqBy(resultItems.filter(i=>!keys.includes(i.id)).flatMap(i=>i.allocatedResultSource), "id");
+    // updated: 按照过滤条件,不一定查询出来的一定是 expenseData, 只要没有父节点的都是根节点(reverseTree中就是叶子节点)
+    // const keys = Array.from(new Set(resultItems.map(i=>oc(i).allocatedResultSource.srcObjectId("")).filter(i=>!!i)));
+    // const leafLevelItems = uniqBy(resultItems.filter(i=>!keys.includes(i.id)).flatMap(i=>i.allocatedResultSource), "id");
+    // leafLevelItems.forEach(item=>{
+    //     sourceCachedMap[item.id] = item;
+    // })
+
+    const dataIds = resultItems.map(i=>i.id);
+    const leafLevelItems = resultItems.filter(item=> !dataIds.includes(item.allocatedResultSource.srcObjectId) ).flatMap(i=>i.allocatedResultSource);
     leafLevelItems.forEach(item=>{
         sourceCachedMap[item.id] = item;
     })
@@ -178,21 +184,23 @@ export function initTreeDataReverse(resultItems: IAllocatedResultData[]): IAlloc
         return !!sourceCachedMap[treeItem.realId];
     });
 
+    remove(treeItems, function(item){return item.toDelete});
+
     console.log("merged treeItems is\n", cloneDeep(treeItems));
 
     return treeItems;
 
-    //获取 以 item 为父元素的节点
+    //获取 以 item 为父元素的节点(从目标获取其来源节点)
     function getChildren(treeItems: IAllocatedResultTreeData[], originalParentItem: IAllocatedResultData, parentItem: IAllocatedResultTreeData, items: IAllocatedResultData[]) {
         const targetItem = targetCachedMap[originalParentItem.allocatedResultSource.srcObjectId];
         const sourceItem = sourceCachedMap[originalParentItem.allocatedResultSource.id];
         if (targetItem) {
-            const newNode = makeNode(targetItem, parentItem.id, {amount: parentItem.amount});
+            const newNode = makeNode(targetItem, parentItem.id);
             treeItems.push(newNode);
             getChildren(treeItems, targetItem, newNode, items);
         }
         if (sourceItem){
-            treeItems.push(makeNodeFromSource(sourceItem, parentItem.id, {amount: parentItem.amount}));
+            treeItems.push(makeNodeFromSource(sourceItem, parentItem.id));
         }
     }
 }
@@ -224,8 +232,6 @@ function makeNodeFromSource(item: IAllocatedResultSource, parentId: string, opti
         name,
         amount: item.amount,
         // id: `${item.id}_${index}`,
-        //todo random
-        // id: Math.random() + "",
         id: getIdFn(),
         parentId,
         level: 1,
@@ -233,6 +239,7 @@ function makeNodeFromSource(item: IAllocatedResultSource, parentId: string, opti
         treeRelativeId: item.srcObjectId,//
         path: objInfo,// 用于辅助,当前的tree层次路径
         isLeaf: false,//从来源出发的一定不是叶子节点
+        isSource: true,// 从来源进行构建
     };
 
     return Object.assign(newItem, options);

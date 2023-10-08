@@ -11,11 +11,17 @@ import { RunIAction } from './components/RunIAction';
 import { cc } from './allocate/utils';
 import { ret, ret1, walkTree } from './allocate/run';
 import {cloneDeep} from 'lodash';
+import TestSimple from './components/TestSimple';
 // import { Tree } from './components/Tree';
 
 const App = (()=> {
   return (
     <div className="App">
+      <Observer>
+        {
+          ()=>(<TestSimple></TestSimple>)
+        }
+      </Observer>
 
         <pre>
           {/* {
