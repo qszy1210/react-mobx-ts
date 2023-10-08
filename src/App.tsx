@@ -12,6 +12,7 @@ import { cc } from './allocate/utils';
 import { ret, ret1, walkTree } from './allocate/run';
 import {cloneDeep} from 'lodash';
 import TestSimple from './components/TestSimple';
+import MyMobx from './test-mobx/MyMobx';
 // import { Tree } from './components/Tree';
 
 const App = (()=> {
@@ -22,6 +23,8 @@ const App = (()=> {
           ()=>(<TestSimple></TestSimple>)
         }
       </Observer>
+
+      <MyMobx></MyMobx>
 
         <pre>
           {/* {
